@@ -9,7 +9,8 @@ export const dynamic = 'force-dynamic';
 
 type Course = { id: string; slug: string; title: string; summary: string | null; level: string; lessons: { id: string }[] };
 
-export default async function Academia() {
+export default async function Academia({ searchParams }: { searchParams: Promise<{ pago?: string }> }) {
+  const sp = await searchParams;
   if (!supabaseReady) return <NotReady />;
   const { supabase, profile } = await requireUser();
   const member = await hasActiveMembership(supabase);
@@ -31,11 +32,12 @@ export default async function Academia() {
         <span className={member ? 'pill on' : 'pill'}>{member ? 'Membresía activa' : 'Sin membresía'}</span>
         <span className="pill">{completed} de {total} lecciones completadas</span>
       </div>
+      {sp.pago === 'ok' && <p className="alert ok" role="status" style={{ marginBottom: 24 }}>¡Pago completado! Bienvenida a LahIA Academia. Si aún no ves todo el contenido, recarga en unos segundos.</p>}
       {!member && (
         <div className="card" style={{ marginBottom: 28 }}>
           <h3>Desbloquea todos los cursos</h3>
           <p className="mute" style={{ margin: '8px 0 16px' }}>Puedes ver las lecciones de muestra. Hazte miembro para acceder a todo el contenido, la comunidad y los certificados.</p>
-          <a className="btn b-iv" href="/#academia">Ver planes</a>
+          <a className="btn b-iv" href="/precios">Ver planes</a>
         </div>
       )}
       <div className="grid g3">

@@ -20,6 +20,7 @@ export async function Nav() {
         <a className="logo" href="/">Somos La<b><i>h</i>IA</b></a>
         <nav aria-label="Principal">
           <Link href="/academia">Academia</Link>
+          <Link href="/precios">Planes</Link>
           {admin && <Link href="/admin">Administración</Link>}
           {logged ? (
             <>

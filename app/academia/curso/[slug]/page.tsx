@@ -50,7 +50,7 @@ export default async function Curso({ params, searchParams }: { params: Promise<
                 ) : content ? (
                   <div><p className="script" style={{ fontSize: 34 }}>{current.title}</p><p className="mute small">El vídeo de esta lección se añadirá pronto.</p></div>
                 ) : (
-                  <div><p style={{ fontSize: 22, marginBottom: 12 }}>Lección solo para miembros</p><a className="btn b-iv" href="/#academia">Hazte miembro</a></div>
+                  <div><p style={{ fontSize: 22, marginBottom: 12 }}>Lección solo para miembros</p><a className="btn b-iv" href="/precios">Hazte miembro</a></div>
                 )}
               </div>
               <div className="row between" style={{ marginTop: 18 }}>
