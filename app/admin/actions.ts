@@ -2,6 +2,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { requireAdmin } from '@/lib/auth';
+import { cancelStripeSubscriptions } from '@/lib/stripe';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 const s = (f: FormData, k: string, max = 600) => String(f.get(k) ?? '').trim().slice(0, max);
@@ -79,6 +80,8 @@ export async function revokeMemberships(f: FormData) {
   const user_id = s(f, 'user_id', 36);
   if (!UUID.test(user_id)) fail('alumnos', 'datos');
   const { supabase } = await requireAdmin();
+  // Si pagaba con Stripe, se cancela también allí; si no, el siguiente aviso de Stripe le devolvería el acceso.
+  try { await cancelStripeSubscriptions(user_id); } catch { return fail('alumnos'); }
   const { error } = await supabase.from('memberships').update({ status: 'canceled' }).eq('user_id', user_id).in('status', ['active', 'trialing']);
   error ? fail('alumnos') : done('alumnos');
 }

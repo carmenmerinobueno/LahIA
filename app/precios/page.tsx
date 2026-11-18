@@ -10,15 +10,19 @@ export const dynamic = 'force-dynamic';
 
 const PERKS = ['Todos los cursos, de cero a experta', 'Contenido nuevo cada semana', 'Comunidad privada', 'Certificados con insignia para LinkedIn', 'Cancela cuando quieras'];
 
-export default async function Precios({ searchParams }: { searchParams: Promise<{ error?: string; pago?: string }> }) {
+export default async function Precios({ searchParams }: { searchParams: Promise<{ error?: string; pago?: string; plan?: string }> }) {
   const sp = await searchParams;
+  const chosen = sp.plan === 'monthly' || sp.plan === 'yearly' ? sp.plan : null;
   let logged = false;
   let member = false;
   if (supabaseReady) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     logged = Boolean(user);
-    if (user) member = Boolean((await supabase.rpc('has_active_membership')).data);
+    if (user) {
+      const { data, error } = await supabase.rpc('has_active_membership');
+      member = !error && Boolean(data);
+    }
   }
   const info = sp.pago === 'cancelado' ? 'Has cancelado el pago. Puedes intentarlo cuando quieras.' : undefined;
 
@@ -33,15 +37,15 @@ export default async function Precios({ searchParams }: { searchParams: Promise<
       ) : (
         <div className="grid g2">
           {(Object.keys(PLANS) as (keyof typeof PLANS)[]).map((k) => (
-            <form key={k} className="card stack" action="/api/pagos/checkout" method="post" style={k === 'yearly' ? { borderColor: 'var(--rose)', background: 'linear-gradient(160deg,#6e1423,#2a0d13)' } : undefined}>
+            <form key={k} className="card stack" action="/api/pagos/checkout" method="post" style={chosen === k ? { borderColor: 'var(--ivory)', boxShadow: '0 0 0 2px var(--rose)' } : k === 'yearly' ? { borderColor: 'var(--rose)', background: 'linear-gradient(160deg,#6e1423,#2a0d13)' } : undefined}>
               <input type="hidden" name="plan" value={k} />
               <div className="row between"><h3>Membresía {PLANS[k].name}</h3>{k === 'yearly' && <span className="pill wine">Ahorras más</span>}</div>
               <p style={{ fontFamily: 'Inter Tight', fontWeight: 600, fontSize: 48, lineHeight: 1 }}>{PLANS[k].label.split(' ')[0]} €<span className="mute" style={{ fontSize: 16, fontWeight: 400 }}> {PLANS[k].label.split(' ').slice(2).join(' ')}</span></p>
               <ul className="mute" style={{ paddingLeft: 18 }}>{PERKS.map((p) => <li key={p}>{p}</li>)}</ul>
               {logged ? (
-                <button className="btn b-iv" type="submit" disabled={!stripeReady}>{stripeReady ? 'Apuntarme ya' : 'Pagos disponibles muy pronto'}</button>
+                <button className="btn b-iv" type="submit" disabled={!stripeReady}>{stripeReady ? (chosen === k ? 'Continuar al pago' : 'Apuntarme ya') : 'Pagos disponibles muy pronto'}</button>
               ) : (
-                <a className="btn b-iv" href="/entrar?modo=registro&next=/precios">Crear cuenta y apuntarme</a>
+                <a className="btn b-iv" href={`/entrar?modo=registro&next=${encodeURIComponent(`/precios?plan=${k}`)}`}>Crear cuenta y apuntarme</a>
               )}
             </form>
           ))}

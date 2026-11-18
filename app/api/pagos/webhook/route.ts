@@ -22,15 +22,14 @@ export async function POST(req: NextRequest) {
       case 'checkout.session.completed': {
         const s = event.data.object;
         if (s.mode === 'subscription' && s.subscription) {
-          const sub = await stripe().subscriptions.retrieve(typeof s.subscription === 'string' ? s.subscription : s.subscription.id);
-          await syncSubscription(sub, s.client_reference_id);
+          await syncSubscription(typeof s.subscription === 'string' ? s.subscription : s.subscription.id, s.client_reference_id);
         }
         break;
       }
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted':
-        await syncSubscription(event.data.object);
+        await syncSubscription(event.data.object.id);
         break;
     }
   } catch (e) {

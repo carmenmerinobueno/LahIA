@@ -26,5 +26,6 @@ export async function hasActiveMembership(supabase: Awaited<ReturnType<typeof cr
 
 /** Solo permite redirecciones internas (evita redirecciones abiertas). */
 export function safeNext(next: unknown, fallback = '/academia') {
-  return typeof next === 'string' && next.startsWith('/') && !next.startsWith('//') ? next : fallback;
+  // Solo rutas internas: empieza por "/" y nunca "//", "/\\", barras invertidas ni caracteres de control.
+  return typeof next === 'string' && next.length <= 300 && /^\/(?![\/\\])[^\\\s\u0000-\u001f]*$/.test(next) ? next : fallback;
 }
