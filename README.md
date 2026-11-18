@@ -14,6 +14,7 @@ Web de LahIA: agencia y academia de inteligencia artificial de Carmen y Gabriel.
 | Mi cuenta: datos, contraseña, membresía, borrar cuenta (RGPD) | `/cuenta` |
 | Panel de administración: resumen, cursos, lecciones, alumnos, mensajes | `/admin` (solo rol `admin`) |
 | Formulario de contacto que guarda en la base de datos | `POST /api/contacto` |
+| Planes y pago con Stripe (mensual / anual), portal para gestionar o cancelar | `/precios`, `/api/pagos/checkout`, `/api/pagos/portal`, `/api/pagos/webhook` |
 | Legal + cookies + 404 + SEO | `/legal/*`, `/robots.txt`, `/sitemap.xml` |
 
 ### Seguridad
@@ -24,10 +25,19 @@ Web de LahIA: agencia y academia de inteligencia artificial de Carmen y Gabriel.
 ## Puesta en marcha (una vez)
 
 1. **Supabase** → crea un proyecto (región Europa) en https://supabase.com.
-2. En **SQL Editor** pega y ejecuta `supabase/migrations/0001_init.sql`.
+2. En **SQL Editor** pega y ejecuta, en orden, `supabase/migrations/0001_init.sql` y `0002_pagos.sql`.
 3. En **Authentication → URL Configuration** pon como *Site URL* la dirección de la web y añade `https://TU-DOMINIO/auth/callback` en *Redirect URLs*.
 4. **Cuentas de prueba**: en *Authentication → Users → Add user* crea `admin@somoslahia.com` y `alumna@somoslahia.com` (con *Auto Confirm*). Después ejecuta `supabase/seed.sql`: la primera será administradora y la segunda alumna con membresía, y se crean 3 cursos de ejemplo.
 5. **Vercel** → *Settings → Environment Variables*: añade las de `.env.example` (están en Supabase → *Project Settings → API*) y vuelve a desplegar.
+
+## Pagos con Stripe (modo prueba, sin cobrar)
+
+1. Crea la cuenta en https://dashboard.stripe.com/register y deja activado **Test mode**.
+2. *Product catalog → Add product* «Membresía LahIA Academia» con dos precios recurrentes: 1 €/mes y 10 €/año. Copia los dos `price_...`.
+3. *Developers → Webhooks → Add endpoint*: `https://TU-DOMINIO/api/pagos/webhook` con los eventos `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated` y `customer.subscription.deleted`. Copia el *Signing secret*.
+4. *Settings → Billing → Customer portal*: actívalo (permitir cancelar y cambiar tarjeta).
+5. Añade en Vercel `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_MONTHLY`, `STRIPE_PRICE_YEARLY` y `SUPABASE_SERVICE_ROLE_KEY`.
+6. Para probar en local: `stripe listen --forward-to localhost:3000/api/pagos/webhook` y paga con la tarjeta `4242 4242 4242 4242`.
 
 ## Desarrollo local
 
@@ -38,4 +48,4 @@ npm run dev
 ```
 
 ## Próximas fases
-Pagos (Stripe con tarjeta/Bizum + PayPal) · vídeos protegidos en Bunny Stream · foro · puntos y rachas · certificados con insignia de LinkedIn · versión en inglés · completar textos legales con los datos de la gestoría.
+PayPal y Bizum · vídeos protegidos en Bunny Stream · foro · puntos y rachas · certificados con insignia de LinkedIn · versión en inglés · completar textos legales con los datos de la gestoría.

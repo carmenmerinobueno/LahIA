@@ -27,12 +27,13 @@ export default async function Entrar({ searchParams }: { searchParams: SP }) {
       <h1 style={{ marginBottom: 24 }}>{reg ? <>Empieza <span className="script">hoy.</span></> : <>Hola de <span className="script">nuevo.</span></>}</h1>
       <nav className="tabs" aria-label="Acceso" style={{ marginBottom: 22 }}>
         <Link href="/entrar" aria-current={!reg ? 'page' : undefined}>Entrar</Link>
-        <Link href="/entrar?modo=registro" aria-current={reg ? 'page' : undefined}>Crear cuenta</Link>
+        <Link href={`/entrar?modo=registro${next !== '/academia' ? `&next=${encodeURIComponent(next)}` : ''}`} aria-current={reg ? 'page' : undefined}>Crear cuenta</Link>
       </nav>
       <div className="card">
         <div style={{ marginBottom: 14 }}><Alert error={msg(sp.error)} ok={msg(sp.ok)} /></div>
         {reg ? (
           <form className="stack" action={signUp}>
+            <input type="hidden" name="next" value={next} />
             <label>Nombre<input name="name" autoComplete="name" required maxLength={120} /></label>
             <label>Correo<input name="email" type="email" autoComplete="email" required maxLength={200} /></label>
             <label>Contraseña (mínimo 10 caracteres, con letras y números)<input name="password" type="password" autoComplete="new-password" required minLength={10} /></label>

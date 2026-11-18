@@ -17,6 +17,8 @@ export default async function Cuenta({ searchParams }: { searchParams: Promise<{
   if (!supabaseReady) return <NotReady />;
   const sp = await searchParams;
   const { supabase, user, profile } = await requireUser();
+  const { data: billing } = await supabase.from('billing_customers').select('user_id').eq('user_id', user.id).maybeSingle();
+  const hasStripe = Boolean(billing);
   const { data: memberships } = await supabase.from('memberships').select('plan, status, current_period_end').eq('user_id', user.id).order('created_at', { ascending: false });
 
   return (
@@ -44,6 +46,11 @@ export default async function Cuenta({ searchParams }: { searchParams: Promise<{
         </section>
         <section className="card">
           <h3 style={{ marginBottom: 14 }}>Membresía</h3>
+          {hasStripe && (
+            <form action="/api/pagos/portal" method="post" style={{ marginBottom: 14 }}>
+              <button className="btn b-ln b-sm" type="submit">Gestionar suscripción, facturas o tarjeta</button>
+            </form>
+          )}
           {memberships?.length ? (
             <ul className="lessons">
               {memberships.map((m, i) => (
@@ -55,7 +62,7 @@ export default async function Cuenta({ searchParams }: { searchParams: Promise<{
               ))}
             </ul>
           ) : (
-            <><p className="mute" style={{ marginBottom: 14 }}>Todavía no tienes membresía.</p><a className="btn b-iv b-sm" href="/#academia">Ver planes</a></>
+            <><p className="mute" style={{ marginBottom: 14 }}>Todavía no tienes membresía.</p><a className="btn b-iv b-sm" href="/precios">Ver planes</a></>
           )}
         </section>
         <section className="card" style={{ borderColor: '#ff9aa833' }}>

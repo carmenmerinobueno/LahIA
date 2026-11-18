@@ -26,6 +26,7 @@ export async function signUp(form: FormData) {
   const email = str(form, 'email').toLowerCase();
   const password = String(form.get('password') ?? '');
   const name = str(form, 'name').slice(0, 120);
+  const next = safeNext(form.get('next'));
   if (form.get('website')) redirect('/entrar?modo=registro&ok=revisa_correo'); // honeypot anti-bots
   if (!validEmail(email) || !name) redirect('/entrar?modo=registro&error=datos');
   if (!validPassword(password)) redirect('/entrar?modo=registro&error=password_corta');
@@ -34,7 +35,7 @@ export async function signUp(form: FormData) {
   const { error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: name }, emailRedirectTo: `${SITE_URL}/auth/callback?next=/academia` },
+    options: { data: { full_name: name }, emailRedirectTo: `${SITE_URL}/auth/callback?next=${encodeURIComponent(next)}` },
   });
   if (error) redirect(`/entrar?modo=registro&error=${rateLimited(error.message) ? 'demasiados' : 'registro'}`);
   redirect('/entrar?ok=revisa_correo');

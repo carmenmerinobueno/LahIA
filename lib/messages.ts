@@ -9,6 +9,7 @@ export const MSG: Record<string, string> = {
   enlace: 'El enlace no es válido o ha caducado. Pide uno nuevo.',
   demasiados: 'Demasiados intentos. Espera un momento y vuelve a probar.',
   error: 'Algo ha fallado. Inténtalo de nuevo.',
+  pagos_no_listos: 'Los pagos se activarán muy pronto.',
   // éxitos
   revisa_correo: 'Te hemos enviado un correo para confirmar tu cuenta.',
   recuperar_enviado: 'Si el correo existe, te hemos enviado un enlace para crear una nueva contraseña.',
