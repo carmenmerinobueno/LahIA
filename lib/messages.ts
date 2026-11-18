@@ -10,11 +10,17 @@ export const MSG: Record<string, string> = {
   demasiados: 'Demasiados intentos. Espera un momento y vuelve a probar.',
   error: 'Algo ha fallado. Inténtalo de nuevo.',
   pagos_no_listos: 'Los pagos se activarán muy pronto.',
+  pago_pendiente: 'Tienes un pago pendiente. Actualiza tu tarjeta en "Gestionar suscripción" antes de cambiar de plan.',
+  precio: 'Revisa el nombre y los precios (solo números, por ejemplo 19 o 19,90).',
+  plan_en_uso: 'Ese plan lo tiene o lo tuvo alguna alumna, así que no se puede borrar. Ocúltalo quitando "Publicado".',
+  modulo_curso: 'Ese módulo es de otro curso.',
+  stripe: 'Stripe no ha aceptado el cambio. Revisa las claves de Stripe e inténtalo de nuevo.',
   // éxitos
   revisa_correo: 'Te hemos enviado un correo para confirmar tu cuenta.',
   recuperar_enviado: 'Si el correo existe, te hemos enviado un enlace para crear una nueva contraseña.',
   password_cambiada: 'Contraseña actualizada.',
   guardado: 'Cambios guardados.',
+  plan_cambiado: 'Plan actualizado. En unos segundos verás tus nuevos cursos.',
 };
 export const msg = (code?: string) => (code && MSG[code]) || undefined;
 

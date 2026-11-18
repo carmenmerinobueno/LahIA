@@ -1,13 +1,14 @@
 -- =====================================================================
--- Pagos con Stripe: cliente de Stripe por usuario.
+-- Pagos con Stripe: cliente de Stripe por usuario. (Se puede ejecutar más de una vez.)
 -- Solo el servidor (clave service_role) escribe aquí; el alumno solo puede leer lo suyo.
 -- =====================================================================
-create table public.billing_customers (
+create table if not exists public.billing_customers (
   user_id             uuid primary key references auth.users(id) on delete cascade,
   stripe_customer_id  text unique not null,
   created_at          timestamptz not null default now()
 );
 alter table public.billing_customers enable row level security;
+drop policy if exists "ver mi cliente" on public.billing_customers;
 create policy "ver mi cliente" on public.billing_customers for select using (user_id = auth.uid() or public.is_admin());
 
 -- Una suscripción de Stripe = una fila de membresía (se actualiza con cada evento).

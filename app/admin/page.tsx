@@ -5,12 +5,13 @@ import { NotReady } from '@/components/NotReady';
 import { supabaseReady } from '@/lib/env';
 import { msg } from '@/lib/messages';
 import { requireAdmin } from '@/lib/auth';
+import { PLAN_FIELDS, eur, portalReady, type Plan } from '@/lib/stripe';
 import * as A from './actions';
 
 export const metadata: Metadata = { title: 'Administración', robots: { index: false } };
 export const dynamic = 'force-dynamic';
 
-const TABS = [['resumen', 'Resumen'], ['cursos', 'Cursos'], ['lecciones', 'Lecciones'], ['alumnos', 'Alumnos'], ['mensajes', 'Mensajes']] as const;
+const TABS = [['resumen', 'Resumen'], ['planes', 'Planes'], ['cursos', 'Cursos'], ['lecciones', 'Lecciones'], ['alumnos', 'Alumnos'], ['mensajes', 'Mensajes']] as const;
 const fmt = (d: string) => new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
 
 export default async function Admin({ searchParams }: { searchParams: Promise<{ tab?: string; ok?: string; error?: string }> }) {
@@ -19,14 +20,19 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
   const tab = TABS.some(([k]) => k === sp.tab) ? sp.tab! : 'resumen';
   const { supabase } = await requireAdmin();
 
-  const [courses, lessons, profiles, memberships, messages] = await Promise.all([
+  const [courses, lessons, profiles, memberships, messages, plans, planCourses, modules] = await Promise.all([
     supabase.from('courses').select('id, slug, title, level, position, published').order('position'),
-    supabase.from('lessons').select('id, course_id, title, position, duration_min, is_free, published').order('position'),
+    supabase.from('lessons').select('id, course_id, module_id, title, position, duration_min, is_free, published').order('position'),
     supabase.from('profiles').select('id, full_name, email, role, created_at').order('created_at', { ascending: false }).limit(500),
-    supabase.from('memberships').select('user_id, plan, status, current_period_end'),
+    supabase.from('memberships').select('user_id, plan, plan_id, status, current_period_end'),
     supabase.from('contact_messages').select('id, name, email, kind, message, handled, created_at').order('created_at', { ascending: false }).limit(200),
+    supabase.from('plans').select(PLAN_FIELDS).order('position').returns<Plan[]>(),
+    supabase.from('plan_courses').select('plan_id, course_id'),
+    supabase.from('modules').select('id, course_id, title, position').order('position'),
   ]);
   const C = courses.data ?? [], L = lessons.data ?? [], P = profiles.data ?? [], M = memberships.data ?? [], X = messages.data ?? [];
+  const PL = plans.data ?? [], PC = planCourses.data ?? [], MO = modules.data ?? [];
+  const planName = (id: string | null) => (id ? PL.find((p) => p.id === id)?.name ?? 'Plan' : 'Acceso completo');
   const activeFor = (uid: string) => M.find((m) => m.user_id === uid && ['active', 'trialing'].includes(m.status) && (!m.current_period_end || new Date(m.current_period_end) > new Date()));
   const activeCount = P.filter((p) => activeFor(p.id)).length;
 
@@ -41,9 +47,77 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
 
       {tab === 'resumen' && (
         <div className="grid g3">
-          {[['Alumnos registrados', P.length], ['Membresías activas', activeCount], ['Cursos publicados', C.filter((c) => c.published).length], ['Lecciones', L.length], ['Mensajes sin responder', X.filter((m) => !m.handled).length]].map(([t, n]) => (
+          {[['Alumnos registrados', P.length], ['Membresías activas', activeCount], ...PL.map((pl) => [`Alumnas en ${pl.name}`, P.filter((p) => activeFor(p.id)?.plan_id === pl.id).length] as [string, number]), ['Cursos publicados', C.filter((c) => c.published).length], ['Lecciones', L.length], ['Mensajes sin responder', X.filter((m) => !m.handled).length]].map(([t, n]) => (
             <div key={t} className="card"><p className="mute small">{t}</p><p style={{ fontSize: 44, fontFamily: 'Inter Tight', fontWeight: 600 }}>{n}</p></div>
           ))}
+        </div>
+      )}
+
+      {tab === 'planes' && (
+        <div className="grid" style={{ gap: 24 }}>
+          <div className="card">
+            <p className="mute small">
+              Aquí decides qué cursos abre cada plan y su precio. {portalReady
+                ? 'Al guardar un precio, se crea solo en Stripe. Las alumnas que ya pagan siguen con su precio; el nuevo vale para las nuevas altas.'
+                : 'Cuando conectes Stripe, al guardar se crearán los precios en Stripe automáticamente.'}
+            </p>
+          </div>
+          {PL.map((p) => (
+            <form key={p.id} className="card stack" action={A.savePlan}>
+              <input type="hidden" name="id" value={p.id} />
+              <div className="row between">
+                <h3>{p.name}</h3>
+                <span className="row">
+                  <span className={p.published ? 'pill on' : 'pill'}>{p.published ? 'Publicado' : 'Oculto'}</span>
+                  <span className={p.stripe_price_monthly || p.stripe_price_yearly ? 'pill on' : 'pill'}>{p.stripe_price_monthly || p.stripe_price_yearly ? 'Conectado a Stripe' : 'Sin Stripe'}</span>
+                </span>
+              </div>
+              <div className="grid g2">
+                <label>Nombre<input name="name" defaultValue={p.name} required maxLength={80} /></label>
+                <label>Frase corta<input name="tagline" defaultValue={p.tagline ?? ''} maxLength={200} /></label>
+                <label>Precio al mes (€)<input name="monthly_eur" inputMode="decimal" defaultValue={eur(p.monthly_eur) ?? ''} placeholder="Ej. 37" /></label>
+                <label>Precio al año (€)<input name="yearly_eur" inputMode="decimal" defaultValue={eur(p.yearly_eur) ?? ''} placeholder="Ej. 370" /></label>
+                <label>Orden<input name="position" type="number" defaultValue={p.position} /></label>
+              </div>
+              <label>Ventajas (una por línea)<textarea name="perks" defaultValue={p.perks.join('\n')} maxLength={3000} /></label>
+              <fieldset className="stack" style={{ border: 0, padding: 0 }}>
+                <legend className="small mute" style={{ marginBottom: 6 }}>Cursos que abre</legend>
+                <label className="check"><input type="checkbox" name="all_courses" defaultChecked={p.all_courses} />Todos los cursos, también los futuros</label>
+                <div className="grid g2">
+                  {C.map((c) => (
+                    <label key={c.id} className="check small"><input type="checkbox" name="courses" value={c.id} defaultChecked={PC.some((x) => x.plan_id === p.id && x.course_id === c.id)} />{c.title}</label>
+                  ))}
+                </div>
+              </fieldset>
+              <div className="row">
+                <label className="check"><input type="checkbox" name="published" defaultChecked={p.published} />Publicado</label>
+                <label className="check"><input type="checkbox" name="highlighted" defaultChecked={p.highlighted} />Destacado</label>
+              </div>
+              <div className="row between">
+                <button className="btn b-iv b-sm" type="submit">Guardar plan</button>
+                <span className="small mute">{P.filter((u) => activeFor(u.id)?.plan_id === p.id).length} alumnas con este plan</span>
+              </div>
+            </form>
+          ))}
+          <form className="card stack" action={A.createPlan}>
+            <h3>Nuevo plan</h3>
+            <div className="grid g2">
+              <label>Nombre<input name="name" required maxLength={80} placeholder="LahIA ..." /></label>
+              <label>Orden<input name="position" type="number" defaultValue={PL.length + 1} /></label>
+            </div>
+            <button className="btn b-iv b-sm" type="submit">Crear plan (oculto)</button>
+          </form>
+          {PL.length > 0 && (
+            <div className="card stack">
+              <h3>Borrar un plan</h3>
+              <p className="small mute">Solo se puede borrar un plan que nadie haya tenido. Si no, desmarca &quot;Publicado&quot; para ocultarlo.</p>
+              <form action={A.deletePlan} className="row">
+                <select name="id" aria-label="Plan" style={{ width: 'auto', minHeight: 38 }}>{PL.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+                <label className="check small"><input type="checkbox" name="confirm" value="si" required />seguro</label>
+                <button className="btn b-danger b-sm">Borrar</button>
+              </form>
+            </div>
+          )}
         </div>
       )}
 
@@ -83,10 +157,20 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
 
       {tab === 'lecciones' && (
         <div className="grid" style={{ gap: 24 }}>
+          <form className="card stack" action={A.createModule}>
+            <h3>Nuevo módulo</h3>
+            <div className="grid g2">
+              <label>Curso<select name="course_id" required>{C.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}</select></label>
+              <label>Título del módulo<input name="title" required maxLength={160} /></label>
+              <label>Orden<input name="position" type="number" defaultValue={1} /></label>
+            </div>
+            <button className="btn b-iv b-sm" type="submit" disabled={!C.length}>Crear módulo</button>
+          </form>
           <form className="card stack" action={A.createLesson}>
             <h3>Nueva lección</h3>
             <div className="grid g2">
               <label>Curso<select name="course_id" required>{C.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}</select></label>
+              <label>Módulo<select name="module_id" defaultValue=""><option value="">Sin módulo</option>{C.map((c) => <optgroup key={c.id} label={c.title}>{MO.filter((m) => m.course_id === c.id).map((m) => <option key={m.id} value={m.id}>{m.title}</option>)}</optgroup>)}</select></label>
               <label>Título<input name="title" required maxLength={160} /></label>
               <label>Orden<input name="position" type="number" defaultValue={1} /></label>
               <label>Duración (minutos)<input name="duration" type="number" min={0} /></label>
@@ -99,25 +183,37 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
             </div>
             <button className="btn b-iv b-sm" type="submit" disabled={!C.length}>Crear lección</button>
           </form>
-          {C.map((c) => (
-            <div key={c.id} className="card" style={{ overflowX: 'auto' }}>
-              <h3 style={{ marginBottom: 10 }}>{c.title}</h3>
-              <table>
-                <tbody>
-                  {L.filter((l) => l.course_id === c.id).map((l) => (
-                    <tr key={l.id}>
-                      <td>{l.position}</td><td>{l.title}</td><td>{l.duration_min ? `${l.duration_min} min` : ''}</td>
-                      <td>{l.is_free && <span className="pill wine">Gratis</span>} <span className={l.published ? 'pill on' : 'pill'}>{l.published ? 'Publicada' : 'Borrador'}</span></td>
-                      <td className="row">
-                        <form action={A.toggleLesson}><input type="hidden" name="id" value={l.id} /><input type="hidden" name="published" value={l.published ? '1' : '0'} /><button className="btn b-ln b-sm">{l.published ? 'Ocultar' : 'Publicar'}</button></form>
-                        <form action={A.deleteLesson}><input type="hidden" name="id" value={l.id} /><button className="btn b-danger b-sm">Borrar</button></form>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
+          {C.map((c) => {
+            const mods = MO.filter((m) => m.course_id === c.id);
+            const groups = [...mods.map((m) => ({ m, items: L.filter((l) => l.module_id === m.id) })), { m: null, items: L.filter((l) => l.course_id === c.id && (!l.module_id || !mods.some((m) => m.id === l.module_id))) }];
+            return (
+              <div key={c.id} className="card" style={{ overflowX: 'auto' }}>
+                <h3 style={{ marginBottom: 10 }}>{c.title}</h3>
+                {groups.filter((g) => g.m || g.items.length).map((g) => (
+                  <div key={g.m?.id ?? 'sin'} style={{ marginBottom: 14 }}>
+                    <div className="row between">
+                      <p className="kick" style={{ margin: '8px 0' }}>{g.m ? `${g.m.position}. ${g.m.title}` : 'Sin módulo'}</p>
+                      {g.m && <form action={A.deleteModule}><input type="hidden" name="id" value={g.m.id} /><button className="btn b-ln b-sm" title="Sus lecciones se quedan en el curso, sin módulo">Quitar módulo</button></form>}
+                    </div>
+                    <table>
+                      <tbody>
+                        {g.items.map((l) => (
+                          <tr key={l.id}>
+                            <td>{l.position}</td><td>{l.title}</td><td>{l.duration_min ? `${l.duration_min} min` : ''}</td>
+                            <td>{l.is_free && <span className="pill wine">Gratis</span>} <span className={l.published ? 'pill on' : 'pill'}>{l.published ? 'Publicada' : 'Borrador'}</span></td>
+                            <td className="row">
+                              <form action={A.toggleLesson}><input type="hidden" name="id" value={l.id} /><input type="hidden" name="published" value={l.published ? '1' : '0'} /><button className="btn b-ln b-sm">{l.published ? 'Ocultar' : 'Publicar'}</button></form>
+                              <form action={A.deleteLesson}><input type="hidden" name="id" value={l.id} /><button className="btn b-danger b-sm">Borrar</button></form>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -131,12 +227,13 @@ export default async function Admin({ searchParams }: { searchParams: Promise<{ 
                 return (
                   <tr key={p.id}>
                     <td>{p.full_name || '—'}</td><td>{p.email}</td><td>{fmt(p.created_at)}</td>
-                    <td>{a ? <span className="pill on">Activa{a.current_period_end ? ` hasta ${fmt(a.current_period_end)}` : ''}</span> : <span className="pill">No</span>}</td>
+                    <td>{a ? <span className="pill on">{planName(a.plan_id)}{a.current_period_end ? ` · hasta ${fmt(a.current_period_end)}` : ''}</span> : <span className="pill">No</span>}</td>
                     <td>{p.role === 'admin' ? <span className="pill wine">Admin</span> : 'Alumno'}</td>
                     <td className="row">
                       <form action={A.grantMembership} className="row">
                         <input type="hidden" name="user_id" value={p.id} />
-                        <select name="plan" defaultValue="gift" aria-label="Plan" style={{ width: 'auto', minHeight: 38 }}><option value="gift">Regalo</option><option value="monthly">Mensual</option><option value="yearly">Anual</option><option value="vip">VIP</option></select>
+                        <select name="plan_id" defaultValue="" aria-label="Plan" style={{ width: 'auto', minHeight: 38 }}><option value="">Todo (regalo o VIP)</option>{PL.map((pl) => <option key={pl.id} value={pl.id}>{pl.name}</option>)}</select>
+                        <select name="plan" defaultValue="gift" aria-label="Tipo" style={{ width: 'auto', minHeight: 38 }}><option value="gift">Regalo</option><option value="vip">VIP</option><option value="monthly">Mensual</option><option value="yearly">Anual</option></select>
                         <input name="months" type="number" min={1} max={36} defaultValue={1} aria-label="Meses" style={{ width: 70, minHeight: 38 }} />
                         <button className="btn b-wine b-sm">Dar acceso</button>
                       </form>

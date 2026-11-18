@@ -3,20 +3,24 @@ import Stripe from 'stripe';
 import { createClient as createSupabase } from '@supabase/supabase-js';
 import { SUPABASE_URL } from '@/lib/env';
 
-export const PLANS = {
-  monthly: { name: 'Mensual', price: process.env.STRIPE_PRICE_MONTHLY ?? '', label: '1 € al mes' },
-  yearly: { name: 'Anual', price: process.env.STRIPE_PRICE_YEARLY ?? '', label: '10 € al año' },
-} as const;
-export type PlanKey = keyof typeof PLANS;
+export const INTERVALS = { monthly: 'month', yearly: 'year' } as const;
+export type Interval = keyof typeof INTERVALS;
+export const isInterval = (v: unknown): v is Interval => v === 'monthly' || v === 'yearly';
 
-export const isPlan = (p: unknown): p is PlanKey => typeof p === 'string' && Object.hasOwn(PLANS, p);
+export type Plan = {
+  id: string; slug: string; name: string; tagline: string | null; perks: string[];
+  monthly_eur: number | null; yearly_eur: number | null; all_courses: boolean; highlighted: boolean;
+  position: number; published: boolean;
+  stripe_product_id: string | null; stripe_price_monthly: string | null; stripe_price_yearly: string | null;
+};
+export const PLAN_FIELDS = 'id, slug, name, tagline, perks, monthly_eur, yearly_eur, all_courses, highlighted, position, published, stripe_product_id, stripe_price_monthly, stripe_price_yearly';
+export const priceIdOf = (p: Plan, i: Interval) => (i === 'monthly' ? p.stripe_price_monthly : p.stripe_price_yearly);
+export const eur = (n: number | null) => (n == null ? null : Number(n).toLocaleString('es-ES', { minimumFractionDigits: Number(n) % 1 ? 2 : 0, maximumFractionDigits: 2 }));
 
-/** El portal solo necesita la clave secreta. */
+/** El portal y la creación de precios solo necesitan la clave secreta. */
 export const portalReady = Boolean(process.env.STRIPE_SECRET_KEY);
 /** Para cobrar hace falta TODO: si falta el webhook o la clave de servidor, alguien podría pagar sin recibir acceso. */
-export const stripeReady = Boolean(
-  portalReady && PLANS.monthly.price && PLANS.yearly.price && process.env.STRIPE_WEBHOOK_SECRET && process.env.SUPABASE_SERVICE_ROLE_KEY,
-);
+export const stripeReady = Boolean(portalReady && process.env.STRIPE_WEBHOOK_SECRET && process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 let _stripe: Stripe | null = null;
 export function stripe() {
@@ -39,11 +43,24 @@ export function mapStatus(s: Stripe.Subscription.Status): 'active' | 'trialing' 
   return 'canceled';
 }
 
-/** El plan se deduce del intervalo real del precio (no de la configuración actual). */
+/** Mensual o anual, según el intervalo real del precio. */
 export function planFromPrice(price?: Stripe.Price | null): 'monthly' | 'yearly' {
-  if (price?.recurring?.interval === 'year') return 'yearly';
-  if (price?.id && price.id === PLANS.yearly.price) return 'yearly';
-  return 'monthly';
+  return price?.recurring?.interval === 'year' ? 'yearly' : 'monthly';
+}
+
+const UUID = /^[0-9a-f-]{36}$/i;
+/** Qué plan de LahIA corresponde a una suscripción: por sus datos o, si no, por el precio. */
+async function planIdFor(sub: Stripe.Subscription, price?: Stripe.Price | null) {
+  const db = adminDb();
+  if (price?.id) {
+    const { data, error } = await db.from('plans').select('id').or(`stripe_price_monthly.eq.${price.id},stripe_price_yearly.eq.${price.id}`).maybeSingle();
+    if (error) throw error;
+    if (data) return data.id as string;
+  }
+  const fromMeta = sub.metadata?.plan_id;
+  if (typeof fromMeta === 'string' && UUID.test(fromMeta)) return fromMeta;
+  // Sin plan reconocible no damos acceso a todo por error: Stripe reintentará y queda en el registro.
+  throw new Error(`Suscripción ${sub.id}: precio ${price?.id ?? '?'} sin plan`);
 }
 
 /**
@@ -69,6 +86,7 @@ export async function syncSubscription(subscriptionId: string, userIdHint?: stri
   const row = {
     user_id: userId,
     plan: planFromPrice(item?.price),
+    plan_id: await planIdFor(sub, item?.price),
     status: mapStatus(sub.status),
     current_period_end: periodEnd,
     provider: 'stripe',
@@ -90,8 +108,41 @@ export async function cancelStripeSubscriptions(userId: string) {
   }
 }
 
-/** ¿Tiene ya una suscripción viva o a medio pagar en Stripe? */
-export async function hasOpenStripeSubscription(customerId: string) {
+/** Su suscripción viva o a medio pagar en Stripe, si la tiene. */
+export async function openStripeSubscription(customerId: string) {
   const subs = await stripe().subscriptions.list({ customer: customerId, status: 'all', limit: 20 });
-  return subs.data.some((s) => ['active', 'trialing', 'past_due', 'incomplete', 'unpaid'].includes(s.status));
+  return subs.data.find((s) => ['active', 'trialing', 'past_due', 'incomplete', 'unpaid'].includes(s.status)) ?? null;
+}
+
+/**
+ * Crea en Stripe los precios de un plan (los precios de Stripe no se pueden editar: si cambia el importe se crea uno nuevo).
+ * Las alumnas que ya pagan siguen con su precio; el nuevo vale para las altas a partir de ahora.
+ */
+export async function syncPlanPrices(plan: Plan) {
+  const s = stripe();
+  let product = plan.stripe_product_id;
+  if (product) {
+    await s.products.update(product, { name: plan.name, active: true });
+  } else {
+    product = (await s.products.create({ name: plan.name, metadata: { plan_id: plan.id } }, { idempotencyKey: `product-${plan.id}` })).id;
+  }
+  const out = { stripe_product_id: product, stripe_price_monthly: plan.stripe_price_monthly, stripe_price_yearly: plan.stripe_price_yearly };
+  for (const i of ['monthly', 'yearly'] as const) {
+    const amount = i === 'monthly' ? plan.monthly_eur : plan.yearly_eur;
+    const key = i === 'monthly' ? 'stripe_price_monthly' : 'stripe_price_yearly';
+    const current = out[key];
+    if (amount == null) { out[key] = null; continue; }
+    const cents = Math.round(Number(amount) * 100);
+    if (current) {
+      const p = await s.prices.retrieve(current);
+      if (p.unit_amount === cents && p.active && p.product === product) continue;
+    }
+    const created = await s.prices.create({
+      product, currency: 'eur', unit_amount: cents, recurring: { interval: INTERVALS[i] },
+      tax_behavior: 'inclusive', metadata: { plan_id: plan.id },
+    });
+    if (current) await s.prices.update(current, { active: false });
+    out[key] = created.id;
+  }
+  return out;
 }
