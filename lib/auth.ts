@@ -24,6 +24,12 @@ export async function hasActiveMembership(supabase: Awaited<ReturnType<typeof cr
   return Boolean(data);
 }
 
+/** Cursos que puede ver (según su plan). Si falla, ninguno: mejor cerrado que abierto. */
+export async function accessibleCourses(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const { data, error } = await supabase.rpc('course_access_ids');
+  return new Set<string>(error || !Array.isArray(data) ? [] : (data as string[]));
+}
+
 /** Solo permite redirecciones internas (evita redirecciones abiertas). */
 export function safeNext(next: unknown, fallback = '/academia') {
   // Solo rutas internas: empieza por "/" y nunca "//", "/\\", barras invertidas ni caracteres de control.

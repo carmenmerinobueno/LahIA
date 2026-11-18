@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { NotReady } from '@/components/NotReady';
 import { supabaseReady } from '@/lib/env';
-import { hasActiveMembership, requireUser } from '@/lib/auth';
+import { accessibleCourses, hasActiveMembership, requireUser } from '@/lib/auth';
 
 export const metadata: Metadata = { title: 'Mi Academia', robots: { index: false } };
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,7 @@ export default async function Academia({ searchParams }: { searchParams: Promise
   const sp = await searchParams;
   if (!supabaseReady) return <NotReady />;
   const { supabase, profile } = await requireUser();
-  const member = await hasActiveMembership(supabase);
+  const [member, access] = await Promise.all([hasActiveMembership(supabase), accessibleCourses(supabase)]);
   const { data: courses } = await supabase
     .from('courses')
     .select('id, slug, title, summary, level, lessons(id)')
@@ -33,11 +33,13 @@ export default async function Academia({ searchParams }: { searchParams: Promise
         <span className="pill">{completed} de {total} lecciones completadas</span>
       </div>
       {sp.pago === 'ok' && <p className="alert ok" role="status" style={{ marginBottom: 24 }}>¡Pago completado! Bienvenida a LahIA Academia. Si aún no ves todo el contenido, recarga en unos segundos.</p>}
-      {!member && (
+      {(courses ?? []).some((c) => !access.has(c.id)) && (
         <div className="card" style={{ marginBottom: 28 }}>
-          <h3>Desbloquea todos los cursos</h3>
-          <p className="mute" style={{ margin: '8px 0 16px' }}>Puedes ver las lecciones de muestra. Hazte miembro para acceder a todo el contenido, la comunidad y los certificados.</p>
-          <a className="btn b-iv" href="/precios">Ver planes</a>
+          <h3>{member ? 'Desbloquea más cursos' : 'Desbloquea todos los cursos'}</h3>
+          <p className="mute" style={{ margin: '8px 0 16px' }}>
+            {member ? 'Tu plan incluye los cursos marcados. Con LahIA Total los tienes todos, y los nuevos antes que nadie.' : 'Puedes ver las lecciones de muestra. Elige tu plan para acceder a los cursos completos, la comunidad y los certificados.'}
+          </p>
+          <a className="btn b-iv" href="/precios">{member ? 'Mejorar mi plan' : 'Ver planes'}</a>
         </div>
       )}
       <div className="grid g3">
@@ -46,7 +48,7 @@ export default async function Academia({ searchParams }: { searchParams: Promise
           const d = c.lessons.filter((l) => doneSet.has(l.id)).length;
           return (
             <Link key={c.id} href={`/academia/curso/${c.slug}`} className="card" style={{ textDecoration: 'none', display: 'grid', gap: 10 }}>
-              <span className="pill">{c.level}</span>
+              <div className="row"><span className="pill">{c.level}</span>{access.has(c.id) ? <span className="pill on">Incluido</span> : <span className="pill">Muestra gratis</span>}</div>
               <h3>{c.title}</h3>
               <p className="mute small">{c.summary}</p>
               <div className="bar" aria-label={`${d} de ${n} lecciones`}><i style={{ width: `${n ? (d / n) * 100 : 0}%` }} /></div>

@@ -10,7 +10,8 @@ import { deleteAccount, updateProfile } from './actions';
 export const metadata: Metadata = { title: 'Mi cuenta', robots: { index: false } };
 export const dynamic = 'force-dynamic';
 
-const PLAN: Record<string, string> = { monthly: 'Mensual', yearly: 'Anual', vip: 'Mentoría VIP', gift: 'Regalo' };
+const PLAN: Record<string, string> = { monthly: 'mensual', yearly: 'anual', vip: 'Mentoría VIP', gift: 'Regalo' };
+type Row = { plan: string; status: string; current_period_end: string | null; plans: { name: string } | null };
 const STATUS: Record<string, string> = { active: 'Activa', trialing: 'En prueba', past_due: 'Pago pendiente', canceled: 'Cancelada' };
 
 export default async function Cuenta({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
@@ -19,7 +20,7 @@ export default async function Cuenta({ searchParams }: { searchParams: Promise<{
   const { supabase, user, profile } = await requireUser();
   const { data: billing } = await supabase.from('billing_customers').select('user_id').eq('user_id', user.id).maybeSingle();
   const hasStripe = Boolean(billing);
-  const { data: memberships } = await supabase.from('memberships').select('plan, status, current_period_end').eq('user_id', user.id).order('created_at', { ascending: false });
+  const { data: memberships } = await supabase.from('memberships').select('plan, status, current_period_end, plans(name)').eq('user_id', user.id).order('created_at', { ascending: false }).returns<Row[]>();
 
   return (
     <div className="wrap section" style={{ maxWidth: 860 }}>
@@ -51,11 +52,12 @@ export default async function Cuenta({ searchParams }: { searchParams: Promise<{
               <button className="btn b-ln b-sm" type="submit">Gestionar suscripción, facturas o tarjeta</button>
             </form>
           )}
+          <a className="small" href="/precios" style={{ display: 'inline-block', marginBottom: 12 }}>Ver o cambiar de plan</a>
           {memberships?.length ? (
             <ul className="lessons">
               {memberships.map((m, i) => (
                 <li key={i} className="row between">
-                  <span>{PLAN[m.plan] ?? m.plan}</span>
+                  <span>{m.plans?.name ? `${m.plans.name} · ${PLAN[m.plan] ?? m.plan}` : `Acceso completo · ${PLAN[m.plan] ?? m.plan}`}</span>
                   <span className={m.status === 'active' ? 'pill on' : 'pill'}>{STATUS[m.status] ?? m.status}</span>
                   {m.current_period_end && <span className="small mute">hasta {new Date(m.current_period_end).toLocaleDateString('es-ES')}</span>}
                 </li>

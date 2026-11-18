@@ -3,13 +3,14 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { NotReady } from '@/components/NotReady';
 import { supabaseReady } from '@/lib/env';
-import { hasActiveMembership, requireUser } from '@/lib/auth';
+import { accessibleCourses, requireUser } from '@/lib/auth';
 import { toggleDone } from './actions';
 
 export const metadata: Metadata = { title: 'Curso', robots: { index: false } };
 export const dynamic = 'force-dynamic';
 
-type Lesson = { id: string; title: string; position: number; duration_min: number | null; is_free: boolean };
+type Lesson = { id: string; title: string; position: number; duration_min: number | null; is_free: boolean; module_id: string | null };
+type Module = { id: string; title: string; position: number };
 
 export default async function Curso({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ leccion?: string }> }) {
   if (!supabaseReady) return <NotReady />;
@@ -18,11 +19,19 @@ export default async function Curso({ params, searchParams }: { params: Promise<
   const { supabase } = await requireUser();
   const { data: course } = await supabase.from('courses').select('id, slug, title, summary, level').eq('slug', slug).maybeSingle();
   if (!course) notFound();
-  const { data: lessons } = await supabase.from('lessons').select('id, title, position, duration_min, is_free').eq('course_id', course.id).order('position').returns<Lesson[]>();
-  const list = lessons ?? [];
-  const member = await hasActiveMembership(supabase);
+  const [{ data: lessons }, { data: modules }, access] = await Promise.all([
+    supabase.from('lessons').select('id, title, position, duration_min, is_free, module_id').eq('course_id', course.id).order('position').returns<Lesson[]>(),
+    supabase.from('modules').select('id, title, position').eq('course_id', course.id).order('position').returns<Module[]>(),
+    accessibleCourses(supabase),
+  ]);
+  const mods = modules ?? [];
+  const modPos = new Map(mods.map((m) => [m.id, m.position]));
+  // Orden: por módulo y, dentro, por posición. Las lecciones sin módulo van al final.
+  const list = [...(lessons ?? [])].sort((a, b) => (modPos.get(a.module_id ?? '') ?? 1e9) - (modPos.get(b.module_id ?? '') ?? 1e9) || a.position - b.position);
+  const groups = [...mods.map((m) => ({ key: m.id, title: m.title as string | null, items: list.filter((l) => l.module_id === m.id) })), { key: 'otros', title: mods.length ? 'Más lecciones' : null, items: list.filter((l) => !l.module_id || !modPos.has(l.module_id)) }].filter((g) => g.items.length);
+  const member = access.has(course.id);
   const current = list.find((l) => l.id === sp.leccion) ?? list[0];
-  // RLS solo devuelve el contenido si es miembro o la lección es de muestra.
+  // RLS solo devuelve el contenido si su plan incluye este curso o la lección es de muestra.
   const { data: content } = current
     ? await supabase.from('lesson_content').select('video_id, body').eq('lesson_id', current.id).maybeSingle()
     : { data: null };
@@ -50,7 +59,7 @@ export default async function Curso({ params, searchParams }: { params: Promise<
                 ) : content ? (
                   <div><p className="script" style={{ fontSize: 34 }}>{current.title}</p><p className="mute small">El vídeo de esta lección se añadirá pronto.</p></div>
                 ) : (
-                  <div><p style={{ fontSize: 22, marginBottom: 12 }}>Lección solo para miembros</p><a className="btn b-iv" href="/precios">Hazte miembro</a></div>
+                  <div><p style={{ fontSize: 22, marginBottom: 12 }}>Esta lección no está en tu plan</p><a className="btn b-iv" href="/precios">Ver planes</a></div>
                 )}
               </div>
               <div className="row between" style={{ marginTop: 18 }}>
@@ -71,16 +80,21 @@ export default async function Curso({ params, searchParams }: { params: Promise<
           ) : <p className="mute">Este curso aún no tiene lecciones.</p>}
         </div>
         <aside className="card" style={{ padding: 14 }}>
-          <ol className="lessons">
-            {list.map((l, i) => (
-              <li key={l.id}>
-                <Link href={`/academia/curso/${course.slug}?leccion=${l.id}`} aria-current={l.id === current?.id ? 'true' : undefined}>
-                  <span>{String(i + 1).padStart(2, '0')} · {l.title}</span>
-                  <span className="small mute">{doneSet.has(l.id) ? '✓' : l.is_free && !member ? 'Gratis' : !member ? 'Miembros' : l.duration_min ? `${l.duration_min} min` : ''}</span>
-                </Link>
-              </li>
-            ))}
-          </ol>
+          {groups.map((g) => (
+            <div key={g.key} style={{ marginBottom: 12 }}>
+              {g.title && <p className="kick" style={{ margin: '6px 4px 6px' }}>{g.title}</p>}
+              <ol className="lessons">
+                {g.items.map((l) => (
+                  <li key={l.id}>
+                    <Link href={`/academia/curso/${course.slug}?leccion=${l.id}`} aria-current={l.id === current?.id ? 'true' : undefined}>
+                      <span>{String(list.indexOf(l) + 1).padStart(2, '0')} · {l.title}</span>
+                      <span className="small mute">{doneSet.has(l.id) ? '✓' : l.is_free && !member ? 'Gratis' : !member ? 'Planes' : l.duration_min ? `${l.duration_min} min` : ''}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ))}
         </aside>
       </div>
     </div>
