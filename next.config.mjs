@@ -11,7 +11,8 @@ const csp = [
   "frame-src https://iframe.mediadelivery.net https://player.vimeo.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
-  "form-action 'self'",
+  // Los formularios de pago redirigen a Stripe (Checkout y portal de cliente).
+  "form-action 'self' https://checkout.stripe.com https://billing.stripe.com",
   "object-src 'none'",
   'upgrade-insecure-requests',
 ].join('; ');
