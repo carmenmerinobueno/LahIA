@@ -384,6 +384,7 @@ h2.wr em{clip-path:inset(-.4em 100% -.5em -.6em)}
     <a href="#academia">Academia</a>
     <a href="#nosotros">Nosotros</a>
     <a href="#diagnostico">Diagnóstico</a>
+    <a href="/entrar">Entrar</a>
   </div>
   <a class="btn b-iv b-sm" href="#contacto">Hablemos</a>
 </nav>
@@ -399,7 +400,7 @@ h2.wr em{clip-path:inset(-.4em 100% -.5em -.6em)}
       <p class="lead" style="color:#d8c9c6">Automatizamos lo que te roba horas y te enseñamos a dominar la inteligencia artificial. Cada semana sin IA es dinero que se queda en la mesa de tu competencia.</p>
       <div class="ctas">
         <a class="btn b-iv" href="#agencia">Contratar a LahIA <svg viewBox="0 0 16 16"><path d="M2 8h12M9 3l5 5-5 5"/></svg></a>
-        <a class="btn b-ln" href="#academia">Entrar en la Academia</a>
+        <a class="btn b-ln" href="/academia">Entrar en la Academia</a>
       </div>
     </div>
     <aside class="side spot">
@@ -523,7 +524,7 @@ h2.wr em{clip-path:inset(-.4em 100% -.5em -.6em)}
         <h3>Membresía LahIA Academia</h3>
         <div class="price"><span id="pv">1 €</span> <small id="pu">al mes</small></div>
         <p style="color:#e9d6d3"><span id="palt">o 10 € al año.</span> Todos los cursos, la comunidad, los recursos y los certificados.</p>
-        <a class="btn b-iv" href="#contacto" style="justify-self:start">Apuntarme ya <svg viewBox="0 0 16 16"><path d="M2 8h12M9 3l5 5-5 5"/></svg></a>
+        <a class="btn b-iv" href="/entrar?modo=registro" style="justify-self:start">Apuntarme ya <svg viewBox="0 0 16 16"><path d="M2 8h12M9 3l5 5-5 5"/></svg></a>
       </div>
       <div class="plan spot">
         <h3>Mentoría VIP</h3>
@@ -560,9 +561,11 @@ h2.wr em{clip-path:inset(-.4em 100% -.5em -.6em)}
         <h3>Déjanos tu mensaje</h3>
         <input id="f-n" type="text" placeholder="Nombre" aria-label="Nombre" required>
         <input id="f-e" type="email" placeholder="Correo" aria-label="Correo" required>
-        <textarea id="f-m" placeholder="Cuéntanos qué necesitas" aria-label="Mensaje"></textarea>
+        <textarea id="f-m" placeholder="Cuéntanos qué necesitas" aria-label="Mensaje" required maxlength="4000"></textarea>
+        <input id="f-w" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+        <label style="display:flex;gap:10px;align-items:flex-start;font-size:13px;color:inherit;opacity:.8"><input id="f-l" type="checkbox" required style="width:16px;min-height:16px;margin-top:3px;accent-color:#6e1423">Acepto la <a href="/legal/privacidad" style="color:inherit">política de privacidad</a>.</label>
         <button class="btn b-wine" type="submit" style="justify-self:start">Enviar</button>
-        <p class="note" id="f-ok" hidden>Vista previa: en la web real tu mensaje nos llegará al momento.</p>
+        <p class="note" id="f-ok" role="status" hidden></p>
       </form>
     </div>
   </div>
@@ -573,7 +576,7 @@ h2.wr em{clip-path:inset(-.4em 100% -.5em -.6em)}
     <div><a class="logo" href="#inicio" style="padding:0">Somos La<b><i>h</i>IA</b></a><p style="color:var(--nm);margin-top:14px;max-width:32ch">La IA con H de humana. Agencia y academia de inteligencia artificial.</p></div>
     <div><h3>LahIA</h3><a href="#agencia">Agencia</a><a href="#academia">Academia</a><a href="#nosotros">Nosotros</a><a href="#diagnostico">Diagnóstico</a></div>
     <div><h3>Síguenos</h3><a href="#inicio">Instagram</a><a href="#inicio">TikTok</a><a href="#inicio">YouTube</a><a href="#inicio">Facebook</a><a href="#inicio">LinkedIn</a></div>
-    <div><h3>Legal</h3><a href="#inicio">Aviso legal</a><a href="#inicio">Privacidad</a><a href="#inicio">Cookies</a><a href="#inicio">Condiciones</a></div>
+    <div><h3>Legal</h3><a href="/legal/aviso-legal">Aviso legal</a><a href="/legal/privacidad">Privacidad</a><a href="/legal/cookies">Cookies</a><a href="/legal/condiciones">Condiciones</a></div>
   </div>
   <div class="giant" aria-hidden="true"><span>L</span><span>a</span><span><i>h</i></span><span>I</span><span>A</span></div>
   <div class="legal"><span>@somoslahia</span><span class="love">Hecho con amor e IA en España</span></div>
@@ -761,7 +764,7 @@ $('shelf').innerHTML=courses.map((c,i)=>'<article class="course"><div class="cov
 const ck='<svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg>';
 $('feat').innerHTML=['Lecciones en vídeo y texto, solo en la web','Comunidad privada para preguntar y compartir','Ruta por niveles con tu progreso','Puntos, niveles y rachas','Biblioteca de recursos y plantillas','Certificado con insignia para LinkedIn','Contenido nuevo cada semana','Acceso con correo o con Google','Gestiona tu suscripción tú misma'].map(f=>'<div>'+ck+f+'</div>').join('');
 $('duo').innerHTML=['Carmen','Gabriel'].map((n,i)=>'<div class="face"><svg viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice"><defs><radialGradient id="f'+i+'" cx="'+(i?70:30)+'%" cy="25%" r="85%"><stop offset="0" stop-color="#c4566a"/><stop offset=".6" stop-color="#6e1423"/><stop offset="1" stop-color="#2a070e"/></radialGradient></defs><rect width="300" height="400" fill="url(#f'+i+')"/><circle cx="150" cy="150" r="58" fill="#f4eee6" fill-opacity=".14"/><path d="M50 400c10-90 50-140 100-140s90 50 100 140z" fill="#f4eee6" fill-opacity=".14"/></svg><b>'+n+'</b></div>').join('');
-$('form').addEventListener('submit',e=>{e.preventDefault();$('f-ok').hidden=false});
+$('form').addEventListener('submit',async e=>{e.preventDefault();const ok=$('f-ok'),b=e.target.querySelector('button[type=submit]');b.disabled=true;ok.hidden=false;ok.textContent='Enviando…';try{const r=await fetch('/api/contacto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('f-n').value,email:$('f-e').value,message:fm.value,website:$('f-w').value})});if(r.ok){ok.textContent='¡Gracias! Te responderemos muy pronto.';e.target.reset()}else{ok.textContent=r.status===429?'Has enviado varios mensajes seguidos. Prueba en un rato.':'No se ha podido enviar. Escríbenos por WhatsApp.'}}catch{ok.textContent='No se ha podido enviar. Revisa tu conexión.'}b.disabled=false});
 
 /* seda burdeos: shader WebGL */
 const sv=$('silk');const gl=sv.getContext('webgl',{antialias:false,premultipliedAlpha:false});
