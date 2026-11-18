@@ -4,6 +4,7 @@ import { NotReady } from '@/components/NotReady';
 import { supabaseReady } from '@/lib/env';
 import { msg } from '@/lib/messages';
 import { requireUser } from '@/lib/auth';
+import { PasswordFields } from '@/components/PasswordFields';
 import { setNewPassword } from '../entrar/actions';
 import { deleteAccount, updateProfile } from './actions';
 
@@ -40,8 +41,7 @@ export default async function Cuenta({ searchParams }: { searchParams: Promise<{
           <h3 style={{ marginBottom: 14 }}>Cambiar contraseña</h3>
           <form className="stack" action={setNewPassword}>
             <input type="hidden" name="back" value="/cuenta" />
-            <label>Nueva contraseña<input name="password" type="password" autoComplete="new-password" minLength={10} required /></label>
-            <label>Repítela<input name="password2" type="password" autoComplete="new-password" minLength={10} required /></label>
+            <PasswordFields label="Nueva contraseña" again="Repítela" />
             <button className="btn b-iv b-sm" type="submit">Actualizar</button>
           </form>
         </section>

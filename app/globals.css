@@ -82,3 +82,14 @@ footer.foot nav{display:flex;gap:16px;flex-wrap:wrap}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 .cg{grid-template-columns:minmax(0,1.7fr) minmax(260px,1fr);align-items:start}
 @media(max-width:860px){.cg{grid-template-columns:minmax(0,1fr)}}
+
+/* requisitos de contraseña */
+.pw-rules{list-style:none;padding:0;margin:-4px 0 4px;display:grid;gap:4px;font-size:13px}
+.pw-rules li{transition:color .2s}
+.pw-rules li.no{color:#ff8f9c}
+.pw-rules li.ok{color:#8fd19e}
+/* botón de Google */
+.btn-google{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:#fff;color:#1f1f1f;border:1px solid #dadce0;border-radius:999px;min-height:46px;font-weight:500;text-decoration:none}
+.btn-google:hover{background:#f6f6f6}
+.or{display:flex;align-items:center;gap:12px;color:var(--mute,#999);font-size:13px;margin:4px 0}
+.or::before,.or::after{content:"";flex:1;height:1px;background:currentColor;opacity:.3}

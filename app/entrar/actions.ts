@@ -30,6 +30,7 @@ export async function signUp(form: FormData) {
   if (form.get('website')) redirect('/entrar?modo=registro&ok=revisa_correo'); // honeypot anti-bots
   if (!validEmail(email) || !name) redirect('/entrar?modo=registro&error=datos');
   if (!validPassword(password)) redirect('/entrar?modo=registro&error=password_corta');
+  if (password !== String(form.get('password2') ?? '')) redirect('/entrar?modo=registro&error=password_distinta');
   if (form.get('legal') !== 'on') redirect('/entrar?modo=registro&error=legal');
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
