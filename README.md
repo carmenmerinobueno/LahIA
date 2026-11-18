@@ -47,6 +47,13 @@ Web de LahIA: agencia y academia de inteligencia artificial de Carmen y Gabriel.
 5. Añade en Vercel `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` y `SUPABASE_SERVICE_ROLE_KEY`. Luego entra en **/admin → Planes** y pulsa «Guardar plan» en cada uno para crear sus precios.
 6. Para probar en local: `stripe listen --forward-to localhost:3000/api/pagos/webhook` y paga con la tarjeta `4242 4242 4242 4242`.
 
+## Entrar con Google
+
+1. En https://console.cloud.google.com crea un proyecto → *APIs y servicios → Pantalla de consentimiento OAuth* (tipo Externo, nombre LahIA).
+2. *Credenciales → Crear credenciales → ID de cliente de OAuth* → tipo *Aplicación web*. En *URI de redireccionamiento autorizados* pega la que te da Supabase en *Authentication → Sign In / Providers → Google* (termina en `/auth/v1/callback`).
+3. Copia el *ID de cliente* y el *Secreto* en Supabase → *Google* y actívalo.
+4. Pon `NEXT_PUBLIC_GOOGLE_LOGIN=1` en `.env.local` y en Vercel. Hasta entonces el botón avisa de que estará disponible pronto.
+
 ## Desarrollo local
 
 ```bash

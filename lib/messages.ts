@@ -9,6 +9,7 @@ export const MSG: Record<string, string> = {
   enlace: 'El enlace no es válido o ha caducado. Pide uno nuevo.',
   demasiados: 'Demasiados intentos. Espera un momento y vuelve a probar.',
   error: 'Algo ha fallado. Inténtalo de nuevo.',
+  google_no_listo: 'El acceso con Google se activará muy pronto. De momento, entra con tu correo.',
   pagos_no_listos: 'Los pagos se activarán muy pronto.',
   pago_pendiente: 'Tienes un pago pendiente. Actualiza tu tarjeta en "Gestionar suscripción" antes de cambiar de plan.',
   precio: 'Revisa el nombre y los precios (solo números, por ejemplo 19 o 19,90).',

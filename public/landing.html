@@ -67,7 +67,7 @@ nav .links a:hover{opacity:1}
 .side hr{border:0;border-top:1px solid #f4eee61f;margin:0;width:100%}
 /* marquee */
 .mq{overflow:hidden;white-space:nowrap;padding:26px 0;border-block:1px solid #f4eee61a}
-.mq div{display:inline-flex;gap:56px;padding-right:56px;font-family:"Inter Tight";font-weight:300;font-size:clamp(28px,4vw,56px);letter-spacing:-.03em;animation:mq 38s linear infinite}
+.mq div{display:inline-flex;gap:56px;padding-right:56px;font-family:"Inter Tight";font-weight:300;font-size:clamp(28px,4vw,56px);letter-spacing:-.03em;animation:mq 20s linear infinite}
 .mq span{display:inline-flex;align-items:center;gap:56px}
 .mq span::after{content:"";width:10px;height:10px;border-radius:50%;background:#e3a3ae}
 @keyframes mq{to{transform:translateX(-100%)}}
@@ -806,9 +806,16 @@ const dc=$('dust');const x=dc.getContext('2d');let P=[],W=0,H=0,mx2=-999,my2=-99
 const build=()=>{
  const d=Math.min(devicePixelRatio,2);W=dc.clientWidth;H=dc.clientHeight;dc.width=W*d;dc.height=H*d;x.setTransform(d,0,0,d,0,0);
  const o=document.createElement('canvas');o.width=W;o.height=H;const ox=o.getContext('2d');
- const fs=Math.min(W*.27,H*.4);ox.font='600 '+fs+'px "Inter Tight", Inter, sans-serif';ox.textAlign='center';ox.textBaseline='middle';ox.fillStyle='#fff';
- ox.fillText('LahIA',W/2,H*(W<600?.3:.34));
- const hw=ox.measureText('La').width,tw=ox.measureText('LahIA').width,hx0=W/2-tw/2+hw,hx1=hx0+ox.measureText('h').width;
+ // Igual que el logo: «La» e «IA» en Inter Tight y la «h» manuscrita (Dancing Script).
+ const fs=Math.min(W*.27,H*.4),sans='600 '+fs+'px "Inter Tight", Inter, sans-serif',script='600 '+(fs*1.12)+'px "Dancing Script", cursive';
+ ox.textBaseline='alphabetic';ox.textAlign='left';ox.fillStyle='#fff';
+ const parts=[['La',sans],['h',script],['IA',sans]];
+ if('letterSpacing' in ox)ox.letterSpacing='0px';
+ const ws=parts.map(([t,f])=>{ox.font=f;return ox.measureText(t).width});
+ const gap=fs*.02,tw=ws.reduce((a,b)=>a+b,0)+gap*2;
+ ox.font=sans;const m=ox.measureText('LIA'),asc=m.actualBoundingBoxAscent||fs*.72;
+ const base=H*(W<600?.3:.34)+asc/2;let cx0=W/2-tw/2,hx0=0,hx1=0;
+ parts.forEach(([t,f],i)=>{ox.font=f;if(i===1){hx0=cx0;hx1=cx0+ws[i]}ox.fillText(t,cx0,base);cx0+=ws[i]+gap});
  const data=ox.getImageData(0,0,W,H).data;const step=W<600?4:5;P=[];
  for(let yy=0;yy<H;yy+=step)for(let xx=0;xx<W;xx+=step){if(data[(yy*W+xx)*4+3]>128)P.push({x:Math.random()*W,y:Math.random()*H,hx:xx,hy:yy,vx:0,vy:0,w:xx>=hx0&&xx<=hx1})}
 };
